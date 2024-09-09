@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Midgard</title>
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <link
+      rel="icon"
+      type="image/x-icon"
+      href="https://raw.githubusercontent.com/mapbox/assembly/publisher-staging/src/svgs/mapbox.svg"
+    />
+    <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
+    <link
+      href="https://api.tiles.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/intersection-observer@0.12.0/intersection-observer.js"></script>
+    <script src="https://unpkg.com/scrollama"></script>
+    <style>
+      body {
+        font-size: 18px;
+        margin: 0;
+        padding: 0;
+        font-family: "Noto Serif", sans-serif;
+      }
+
+      a,
+      a:hover,
+      a:visited {
+        color: #0071bc;
+      }
+
+      #logo {
+        width: 100%;
+        background-color: white;
+        /* White background strip */
+        padding: 8px 0;
+        /* Adjust padding for the white strip height */
+        text-align: center;
+        /* Center the logo horizontally */
+        z-index: 10;
+        /* Ensure the logo stays above the map */
+      }
+
+      #logo img {
+        max-height: 90px;
+        /* Adjust the logo size */
+        height: auto;
+        width: auto;
+      }
+
+      #container {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+        /* Full viewport height */
+        overflow: hidden;
+        /* padding-left: 40px; */
+        /* Adds space on the left of the container */
+        box-sizing: border-box;
+        /* Ensure padding doesn't affect overall width */
+        color: #444;
+      }
+
+      #map1,
+      #map2 {
+        top: 0;
+        height: 100vh;
+        width: 100vw;
+        /* position: fixed; */
+      }
+
+      #map-container1,
+      #map-container2 {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        /* Adjust the height based on scroll */
+      }
+
+      #mapInset {
+        bottom: 50px;
+        right: 30px;
+        height: 180px;
+        width: 250px;
+        max-width: 100%;
+        position: fixed;
+        z-index: 1;
+        opacity: 1;
+        transition: opacity 0.5s ease-in-out;
+        pointer-events: none;
+      }
+
+      #mapInset .mapboxgl-ctrl-bottom-left {
+        display: none;
+      }
+
+      @media (max-width: 500px) {
+        #mapInset {
+          display: none;
+        }
+      }
+
+      #header {
+        margin: auto;
+        width: 100%;
+        position: relative;
+        z-index: 5;
+      }
+
+      #header h1,
+      #header h2,
+      #header p {
+        margin: 0;
+        padding: 2vh 2vw;
+        text-align: right;
+      }
+
+      #footer {
+        width: 100%;
+        min-height: 5vh;
+        padding-top: 2vh;
+        padding-bottom: 2vh;
+        text-align: center;
+        line-height: 25px;
+        font-size: 13px;
+        position: relative;
+        z-index: 5;
+      }
+
+      #features {
+        padding-top: 10vh;
+        padding-bottom: 10vh;
+      }
+
+      .hidden {
+        visibility: hidden;
+      }
+
+      .centered {
+        width: 50vw;
+        margin: 0 auto;
+      }
+
+      .lefty {
+        width: 33vw;
+        margin-left: 5vw;
+      }
+
+      .righty {
+        width: 33vw;
+        margin-left: 62vw;
+      }
+
+      .fully {
+        width: 100%;
+        margin: auto;
+      }
+
+      .light {
+        color: #010101;
+      }
+
+      .dark {
+        color: #fafafa;
+        background-color: #444;
+      }
+
+      .step {
+        padding-bottom: 50vh;
+        /* margin-bottom: 10vh; */
+        opacity: 0.25;
+      }
+
+      .step.active {
+        opacity: 0.9;
+      }
+
+      .step div {
+        padding: 25px 50px;
+        /*line-height: 25px;*/
+        font-size: 18px;
+        font-family: "Noto Serif", sans-serif;
+        background: white;
+      }
+
+      .step img {
+        width: 100%;
+      }
+
+      .content p {
+        line-height: 1.6;
+        font-size: 18px;
+        max-width: 678px;
+        margin: 0 auto;
+      }
+
+      .content h2 {
+        line-height: 1.6;
+        font-size: 28px;
+        letter-spacing: -0.01em;
+        line-height: 34px;
+        max-width: 678px;
+        margin: 0 auto;
+        font-family: "Barlow Condensed";
+        font-weight: 600;
+        margin-top: 0.75em;
+      }
+
+      /* Main content after scrollama */
+      .content-wrapper {
+        margin-top: 100vh;
+        /* Ensures the content starts after the scrollable map */
+        padding: 40px;
+        background-color: #f4f4f4;
+        color: #333;
+      }
+
+      .content-wrapper .content {
+        max-width: 678px;
+        margin: 0px 20px;
+      }
+
+      .content-wrapper p {
+        font-family: "Noto Serif", sans-serif;
+        font-weight: 400;
+        font-size: 18px;
+        letter-spacing: 0.03em;
+        line-height: 24px;
+        color: #000;
+      }
+
+      .relative-map {
+        position: relative;
+        /* Switch to relative when needed */
+        top: auto;
+        width: 100%;
+        /* Adjust to full width if necessary */
+      }
+
+      figcaption {
+        color: #ccc;
+        font-size: 0.85em;
+        max-width: 678px;
+        text-align: left;
+        margin: 0 auto;
+      }
+
+      /* img figcaption {
+        text-align: left;
+        margin: 0 auto
+      } */
+
+      @media (max-width: 750px) {
+        .centered,
+        .lefty,
+        .righty,
+        .fully {
+          width: 90vw;
+          margin: 0 auto;
+        }
+      }
+
+      /* Fix issue on mobile browser where scroll breaks  */
+      .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate.mapboxgl-touch-drag-pan,
+      .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate.mapboxgl-touch-drag-pan
+        .mapboxgl-canvas {
+        touch-action: unset;
+      }
+    </style>
+  </head>
+
+  <style>
+    #container {
+      position: sticky;
+      top: 0;
+      left: 0;
+    }
+    #map1,
+    #map2 {
+      position: sticky;
+      top: 0;
+      left: 0;
+    }
+
+    figure img {
+      max-width: 100%;
+      height: auto;
+      margin: 0 auto;
+      max-height: 80vh;
+    }
+    figure {
+      margin: 0 auto;
+      padding-bottom: 1.2em;
+      text-align: center;
+    }
+
+    .normal-content {
+      font-family: "NotoSerif-Regular";
+      font-weight: 400;
+      font-size: 18px !important;
+      letter-spacing: 0.03em;
+      line-height: 24px;
+      color: #000;
+    }
+
+    .scrolly-content {
+      margin: 2em 0;
+    }
+  </style>
+
+  <body>
+    <div id="logo">
+      <img src="VSQUARE_LOGO_1200.png" alt="Logo" />
+    </div>
+
+    <div class="scrolly-content">
+      <div id="container">
+        <div id="map1"></div>
+      </div>
+
+      <div id="story"></div>
+    </div>
+
+    <div class="content">
+      <p>
+        Around the same time as the terror group classification hit the Swedish
+        Nazi merchandise business, a man appeared in casual summer clothing at a
+        post office in Alingsås earlier in August 2024. He was wearing shorts,
+        sandals, sunglasses and a t-shirt paying tribute to the German Nazis
+        killed during World War II. With the text “Revolution” and an image of
+        soldiers in SS uniform emblazened across the back of his t-shirt, and
+        with a picture of German white power band Blutzeugen (Blood witnesses,
+        Nazi Germany's term for the martyrs of its own movement) and the text
+        "Der Kampf geht weiter" (The struggle goes on) printed on the front, he
+        left the post office with new deliveries arriving for his company.
+      </p>
+      <br />
+    </div>
+    <figure>
+      <img
+        src="Martin Flennfors Photo_ Daniel Olsson_Expressen.PNG"
+        alt="image"
+      />
+      <figcaption>Martin Flennfors. Photo: Daniel Olsson/Expressen</figcaption>
+    </figure>
+
+    <div class="content">
+      <p>
+        The man in the t-shirt was Martin Flennfors, 38. He is the owner and CEO
+        of the Nazi online store Midgård, which, despite strong ties to the
+        terrorist-classified NMR, has continued to operate by selling its
+        propaganda internationally.
+      </p>
+      <br />
+      <p>
+        In December of 2023, information on approximately 20,000 purchases was
+        put online. The leak, which was spread by the left-wing extremist
+        organization AFA (Antifascistisk Aktion), contained Midgård's customer
+        register between the years 2017 and 2022 — and provided insight into
+        just how widespread Midgård's sales are.
+      </p>
+      <br />
+      <p>
+        In the database, it is possible to see in detail who ordered what and
+        when. Among the approximately 2,500 unique customers who have placed a
+        total of over 7,000 orders, there are several well-known Nazis who are
+        themselves Swedish or have ties to Sweden. These individuals have been
+        convicted of, among other things, incitement against ethnic groups,
+        arson, and politically motivated acts of violence. The leak shows that
+        Midgård, which describes itself as "one of the world's largest shops for
+        alternative people," has thousands of customers in 62 countries. After
+        Sweden, Germany, with roughly 3,400 orders, is the most common recipient
+        country. In several of the recipient countries, including Germany,
+        Midgård's operations had been completely or partially prohibited.
+      </p>
+      <br />
+      <p>
+        Midgård's product line connects it to multiple Nazi organizations. In
+        addition to magazines from NMR, and its predecessor SMR, Midgård also
+        sells newspapers from the defunct Swedes' Party and from the far-right
+        organization Det fria Sweden. Midgård is also a retailer of several
+        international brands, such as the Polish "Keep it White" clothing brand.
+        Midgård's international network has also connected it to several other
+        stores and producers of white power products. On several occasions,
+        Midgård, on its Telegram channel, has urged followers to also support
+        record companies and retailers in, for example, the United States,
+        Russia, Serbia and Hungary. Among these are the Russian Übermensch shop
+        and the American Hammer shop.
+      </p>
+      <br />
+      <p>
+        This summer, the US Hatewatch initiative, which is run by the Southern
+        Poverty Law Center, published a review of the approximately 1,500
+        purchases that were sent to the United States from Midgård. Among
+        Midgård's American clients are representatives of Nazi and radical right
+        groups such as Volksfront, Patriot Front, Clockwork Crew and the
+        Traditionalist Worker Party. In neighboring Canada, orders have gone to
+        activists for Nazi groups such as Vinland Hammerskins, Aryan Guard and
+        NSC-131.
+      </p>
+      <br />
+      <p>
+        This Expressen-led investigation has also examined the customer
+        register, focusing on Midgård's branches in Central Eastern Europe.
+        VSquare’s partners have uncovered the following:
+      </p>
+    </div>
+
+    <div class="scrolly-content">
+      <div id="container">
+        <div id="map2"></div>
+      </div>
+      <div id="story2"></div>
+    </div>
+
+    <div class="content">
+      <h2>Serving Orbán’s media empire while ordering Nazi music</h2>
+      <br />
+      <p>
+        One of the most interesting customers of Nazi merchandise in Hungary
+        works at the country's largest government-controlled media empire, which
+        publishes pro-Orbán propaganda and is owned by a foundation represented
+        by persons close to Prime Minister Viktor Orbán’s ruling Fidesz party.
+      </p>
+      <br />
+      <p>
+        This pro-government journalist published a book on the “radical right”
+        and has covered nationalistic topics in his articles. For example, in
+        the mid-2010s, he published an interview with the leader of Betyársereg
+        (Outlaw Army), which was one of Hungary’s most significant far-right
+        paramilitary groups at the time. He also reported on a Swedish town
+        where Hungarian immigrants formed a peaceful and diligent community,
+        contrasting it with Muslim migrants who were portrayed as violent and
+        unable to integrate.
+      </p>
+      <br />
+      <p>
+        In 2018, several shipments of white power music were sent to this
+        journalist’s address. This included music by Frank Rennicke, a German
+        neo-Nazi troubadour convicted of multiple hate crimes. This journalist
+        also apparently received music by a German band called Faustrecht,
+        multiple band members of which were active in the Blood and Honor
+        movement (the band itself also regularly performed at Blood and Honor
+        events). In Germany, some of their albums have been classified as
+        harmful for minors, which means these albums cannot be publicly
+        displayed in stores and may only be sold to persons above 18.
+      </p>
+      <br />
+      <p>
+        A national security expert interviewed by Atlatszo.hu revealed that, in
+        early 2024, the pro-government journalist was approached and interviewed
+        by the Hungarian internal security agency, the Constitution Protection
+        Office (Alkotmányvédelmi Hivatal). The investigation allegedly took
+        place in connection with the leaked Midgård database (as well as in
+        relation to clashes between Nazi and Antifa groups in Budapest in 2023,
+        when several people, including both Hungarians and foreigners were
+        arrested). The expert added that there is a possibility that other
+        Midgård customers were also interrogated by the security agency after
+        the database leaked.
+      </p>
+      <br />
+      <p>
+        According to the leaked data, Hungarian customers mostly bought music
+        from Midgård. The Hungarian pro-government journalist customer said,
+        “Looking at the list, I see that at least one third of the customers
+        were not at all extreme-minded – they were just selling records, spicing
+        up their rock-metal-punk selections with exotic, Swedish, Finnish or
+        Estonian national rock music. Because they were cheap in the 2010’s, and
+        there was a demand – even though no one understood a word of the lyrics.
+        I think what people listen to in their homes is a matter of taste, and
+        we should not peek into each other's bedrooms or CD players.”
+      </p>
+      <br />
+      <p>
+        The journalist customer also argued that these are “legal CDs” ordered
+        legally from a registered music publisher. According to him, if a crime
+        were committed, it was by those who hacked into Midgård’s database and
+        then, “with a stigmatizing intent,” compiled a searchable list of
+        customers with names, addresses and phone numbers. “To list people
+        openly, threateningly, on the basis of their supposed political views is
+        no longer a matter of taste, and, in fact, to me, this seems to be
+        fascism,” the avid customer of Nazi music added.
+      </p>
+      <br />
+      <p>
+        In Hungary, possessing, selling or publicly playing music with Nazi or
+        far-right lyrics is not automatically considered unlawful. However, if
+        there is a trial in which the indictment involves such music, the lyrics
+        are examined thoroughly, line by line, before the judgment is delivered.
+      </p>
+      <br />
+
+      <h2>Czech and Slovak customers range from neo-Nazis to soldiers</h2>
+      <br />
+      <p>
+        One of Midgård’s Czech customers was sentenced to four years in prison
+        for selling guns without a permit, investigace.cz found. He used to be a
+        member of the now-ruling Civic Democratic Party (ODS) but was expelled
+        in 2008 when the party found out that he organized a neo-Nazi march.
+        Another Czech customer was sentenced for a racially-motivated assault on
+        an American-born singer living in the Czech Republic. A third alleged
+        Midgård customer was sentenced for attacking a Roma man. Along with
+        other offenders, he attacked a group of Romani people: the attackers
+        kicked them and shot them with a gas gun, and then stabbed one Romani
+        man four times with a knife.
+      </p>
+      <br />
+      <p>
+        A lawyer, a businessman in the beauty industry and a tattoo parlor owner
+        also shopped online at the Swedish Nazi store.
+      </p>
+      <br />
+      <p>
+        Reporters from investigace.cz also asked Czech police about the issue of
+        selling items with neo-Nazi or skinhead themes. "Usually, these products
+        promote movements that suppress rights and freedoms or other crimes that
+        fall into the category of hate crimes,“ Colonel Ondřej Moravčík, head of
+        the press department, said. According to him, there is no standard
+        approach to such sales and they thus must be considered on a
+        case-by-case basis. In 2022, an interior ministry spokesman told Czech
+        media that law enforcement agencies do not prosecute the use of symbols
+        or letters themselves, but rather the specific actions and intent, and
+        that the context is always relevant.
+      </p>
+      <br />
+      <p>
+        As political scientist Jan Charvát explained to investigace.cz,
+        appearance has always been very important to the skinhead subculture.
+        “It was exactly the thing that attracted the attention of young boys.
+        From the interviews I did with people from this subculture, it clearly
+        emerged that they were not attracted to politics in the first place, but
+        image and violence were the two key things for becoming a skinhead.
+        Politicization often came second.”
+      </p>
+      <br />
+      <p>
+        According to Charvát, there was both a visual and a political dimension
+        to being a skinhead — a bald head, heavy boots, bomber jacket, and
+        tattoos accompanied racism and anti-semitism. “In order to connect the
+        two dimensions and somehow demonstrate them, t-shirts and patches,
+        clothes and accessories appeared,“ Charvát explained. Subsequently,
+        around the year 2000, a few people in the Czech Republic realized that
+        they could profit from selling these items. They organized concerts and
+        sold T-shirts and patches or CDs. These shops were also important in
+        that they were physical places where members of the subculture could
+        meet each other.
+      </p>
+      <br />
+      <figure>
+        <img
+          src="Midgård warehouse Photo_swedish police_Expressen.PNG"
+          alt="image"
+        />
+        <figcaption>
+          Inside the shop. Stacks of CD's. Photo: Swedish Police/Expressen
+        </figcaption>
+      </figure>
+      <p>
+        Also around 2000, a large number of people from the skinhead subculture
+        decided they were no longer comfortable dressing in high boots and
+        bombers and were looking for something else, which is what the German
+        brand Thor Steinar, and many others, realized they could take advantage
+        of” “It offers an aggressive fashion that, if you're a neo-Nazi, you see
+        as your own, and if you're not a neo-Nazi, you don't see specific
+        symbols in it that can be prosecuted,“ the expert added.
+      </p>
+      <br />
+      <p>
+        There were also Czech brands that tried to break through with similar
+        fashion around this same time. These companies took advantage of the
+        fact that there were people who were eager to buy such clothes because
+        it was the main way for them to show their political affiliation. This
+        worked until the subculture hollowed out after 2006. "That's when the
+        phenomenon of autonomous nationalism emerged, which tried to leave out
+        the subcultural dimension," Charvát said, adding that this led to the
+        gradual demise of the Czech neo-Nazi subcultural scene, which he says
+        disintegrated around 2013.
+      </p>
+      <br />
+      <p>
+        The Slovaks identified in the leak also come from a wide range of
+        professions and social backgrounds. According to ICJK.sk’s analysis, the
+        list of Slovak Midgård customers includes an employee at a Bratislava
+        car dealership, the owner of a car rental company, various freelancers
+        and contractors from across the country — and even a soldier from the
+        Slovak Ministry of Defence. Many on the list allegedly purchased
+        neo-Nazi music CDs and other records, and clothing bearing Nazi symbols.
+        Notably, according to an unverified list published on a disinformation
+        site, the Slovak soldier was involved in nationwide Covid testing
+        efforts. He is also reportedly active in a football fan group.
+      </p>
+      <br />
+      <p>
+        ICJK.sk contacted the people on the list but most did not respond to the
+        inquiries. Those who did reply denied having ordered anything from the
+        online Nazi shop.
+      </p>
+      <br />
+      <h2>Polish local politicians and activists who love Nazi music</h2>
+      <br />
+      <p>
+        FRONTSTORY.PL identified one of Midgård's Polish customers as Olgierd
+        Obrycki. He is a close associate of Robert Bąkiewicz, a Polish
+        nationalist who was supported by millions of złoty from public funds
+        during the previous Law and Justice government. Until recently,
+        Bąkiewicz was the organizer of the Warsaw Independence March, one of the
+        largest nationalist gatherings in Europe, carried out every year on
+        November 11. A few days ago, on September 4, 2024, police raided
+        Bąkiewicz’s residence in connection with an investigation into the
+        neo-Nazi symbols on display and the hateful slogans aimed at minority
+        groups at the Independence March in 2018.
+      </p>
+      <br />
+      <p>
+        Bąkiewicz associate Obrycki bought records of the Italian band Ultima
+        Frontiera from the Swedish store. Ultima Frontiera glorifies a
+        neo-fascist from the Avanguardia Nazionale terrorist organization in one
+        of their songs. According to FRONTSTORY.PL’s sources with knowledge of
+        his activities, Obrycki has been working with Bąkiewicz for over a
+        decade. In 2020, he was one of the initiators of the creation of the
+        National Guard – an organization of nationalists whose task was to
+        "protect Catholic churches" during mass protests against the tightening
+        of abortion law in Poland. On his Facebook, Obrycki recommended a book
+        by Leon Degrelle, a Belgian fascist who collaborated with the Nazis
+        during World War II.
+      </p>
+      <br />
+      <figure>
+        <img
+          src="Midgård warehouse Photo_swedish police_Expressen (1).PNG"
+          alt="image"
+        />
+        <figcaption>
+          One of the shop's bestsellers. "The Turner Diaries" novel describes a
+          racist uprising ending up in mass executions of "the traitors of white
+          race" as well as Jews and non-whites. It inspired perpetrators of
+          attacks that killed over 200 people, including Oklahoma City bombing
+          in 1995. Photo: Swedish Police/Expressen
+        </figcaption>
+      </figure>
+      <p>
+        Meanwhile, Michał Wiltosiński, a local activist of the far-right
+        Confederation (Konfederacja) party from Jaworzno in Upper Silesia,
+        ordered records by the band Gammadion (meaning swastika in Greek). He
+        bought a total of 20 records from Midgård. These included some by the
+        band Skrewdriver, founded by Ian Stuart Donaldson, who also founded the
+        neo-Nazi Blood and Honor international movement. Wiltosiński is not an
+        anonymous activist of the Confederation party — as its representative,
+        he laid flowers in Jaworzno at a Polish historical monument.
+      </p>
+      <br />
+      <p>
+        Jerzy Rózio was also a Midgård customer. In the last local elections, he
+        ran for councilor of Bielsk Podlaski as a candidate of the right-wing
+        alliance. Rózio is not ashamed of his political roots: In his Facebook
+        photo, he proudly presents himself with a skinhead tattoo on his left
+        forearm. He turned to Midgård to buy, among other things, a belt with a
+        buckle "in memory of" Ian Stuart Donaldson. He also ordered records by
+        the band Code 291, the lead musician of which is Joakim "Joke" Karlsson,
+        a neo-Nazi who until recently had a tattoo of a swastika on his chest
+        (he later "painted it over"). In 2018, Karlsson was supposed to be the
+        star of the "Ku niepodległej" (“Towards our independent state”) concert,
+        organized in Warsaw by the nationalist Niklot Association. The event did
+        not take place because – as OKO.press reported at the time — its
+        organizers were detained by Polish security services.
+      </p>
+      <br />
+      <p>
+        One of Midgård's most frequent customers was Jędrzej Kubski, nicknamed
+        Węgorz, a 43-year-old mixed martial arts competitor from Poznań. Kubski
+        made his debut twenty years ago and has since won medals in both
+        European and Polish jiu-jitsu championships. Articles about his fights
+        and interviews from a few years ago can be found online. The database
+        shows that he made purchases from the Swedish store nine times between
+        2019 and 2021. Among the orders, we find the entire spectrum of the
+        neo-Nazi music scene: from Skrewdriver to Code 291 to Pittbulfarm,
+        another band by Jaokim "Joke" Karlsson.
+      </p>
+      <br />
+      <h2>Europe’s Swedish Nazi merchandise suppliers</h2>
+      <br />
+
+      <p>
+        In Sweden, Midgård's home country, the most active buyers today are
+        middle-aged men who have been active in the Nazi movement since their
+        youth in the early 1990s. A resident of Gävle who was a member of the
+        now defunct National Socialist Front for several years has, according to
+        the customer register, made 111 purchases from 2017 to 2022. A man from
+        Skåne with a background in the terrorist-inspired Nazi organization
+        White Aryan Resistance and the National Socialist Front ordered 77
+        items. In the 1990s, he was found guilty of an arson attack against the
+        local editorial office of the newspaper Smålänningen and a police
+        station in Älmhult, because, as he explained, "the police work for a
+        Zionist regime and newspapers are controlled by Jewish forces.”
+      </p>
+      <br />
+      <p>
+        Expressen’s journalists have also examined the hub of this international
+        distribution of Nazi goods.
+      </p>
+      <br />
+      <p>
+        The tracks lead onto a small dirt road straight into a forest just
+        outside central Alingsås. Here, the police raided one of Midgård's two
+        warehouses in November 2022 after the chancellor of justice decided to
+        open a preliminary investigation into incitement against an ethnic
+        group. As police searched through a food cellar and a storage building
+        next to the house where Martin Flennfors lives, they also raided an
+        apartment on the top floor of a building in central Alingsås belonging
+        to Tobias Jonsson, 38. Police photos and a video taken during the raid
+        show rows of bookshelves filled with CDs and LPs alongside stacked
+        cartons of printed T-shirts and propaganda.
+      </p>
+      <br />
+      <p>
+        Police found thousands of CDs wrapped in plastic in Flennfor's food
+        cellar. In Jonsson's apartment, the Nazi merchandise was stacked in a
+        special office and storage area, and also in his kitchen.
+      </p>
+      <br />
+      <p>
+        Martin Flennfors runs Midgård via a company called Ringhorne AB. Since
+        the first half of the 2000s, he has been active in the local Nazi
+        movement in Alingsås, first as an active member of the current Nordic
+        Resistance Movement's youth organization National Youth, and then moving
+        on into its parent organization. He was active there until the mid
+        2010s, including as a member of the editorial forum for the
+        organization's propaganda website, Nordfront. He was also a regular
+        commentator on the site.
+      </p>
+      <br />
+      <p>
+        In 2016, Flennfors was also the publisher of Midgård's site. This led to
+        his conviction two years later in ten cases of incitement against an
+        ethnic group. The offenses concerned products that were for sale on the
+        site, including album covers with swastikas and fabric tags with the
+        numbers 88, which stands for "Heil Hitler.” (“H” being the eighth letter
+        of the alphabet).
+      </p>
+      <br />
+      <p>
+        But Flennfors does not run Midgård alone. Joining him on the company
+        board is Martin Engelin, 38, who, since spring 2018, has also been
+        registered as a publisher of Midgård's site. Engelin has a long history
+        in the Swedish Nazi movement. He is active in the Nordic Resistance
+        Movement but was previously involved in the now defunct Nazi party, the
+        Swedes' Party. He is a frequent lecturer on subjects such as IT security
+        and life as a Nazi activist, and also an author on NMR's websites. When
+        he was questioned by police for his role as a publisher of Midgård's
+        website in the fall of 2022, Martin Engelin stated that he is also a
+        "journalist" on the Nordic Resistance Movement's (NMR) Nordfront
+        website.
+      </p>
+      <br />
+      <figure>
+        <img
+          src="Martin Engelin - Photo_ Swedish police_Expressen.png"
+          alt="image"
+        />
+        <figcaption>Martin Engelin. Photo: Swedish police/Expressen</figcaption>
+      </figure>
+      <p>
+        However, NMR is not the only Nazi organization with which Midgård is
+        connected. In December 2022, they, together with Nazi group Hammerskin's
+        Swedish branch, participated in a demonstration in honor of Swedish Nazi
+        leader Birger Furugård. In connection with Furugård's death anniversary,
+        unknown representatives of Midgård, together with members of
+        Hammerskins, laid a bouquet of flowers on the Nazi leader's grave with
+        the words "To the end faithful" printed on the bouquet’s ribbon.
+      </p>
+      <br />
+      <p>
+        When NMR was classified as a terrorist group by the US State Department,
+        Engelin took to Nordfront to describe the classification as "an
+        achievement and a black diploma for our hard, constant and persistent
+        work for the new Nordic nation and its inhabitants.”
+      </p>
+      <br />
+      <p>
+        The ties between Midgård and NMR do not stop there. In the summer of
+        2015, the Nazi organization collected money to cover Midgård’s legal
+        fees after the chancellor of justice opened a preliminary investigation
+        against Midgård for incitement against a ethnic group. The person who
+        was then the Midgård company's board member – and who was later also
+        convicted of four counts of incitement against a ethnic group for album
+        covers and a shirt published on Midgård's website – was Tobias Jonsson.
+      </p>
+      <br />
+      <p>
+        In the judgment, the district court found that the publication of the
+        album cover of the band Vit Aggression's album "Död åt Zog!” (Death to
+        Zog!), where a rifle is pointed at the spectator, together with the
+        album title's aim at a conspiratorial Jewish world domination,
+        constituted "threats and disrespect towards the Jewish ethnic group," as
+        well as an incitement to the use of violence. A band shirt of a band
+        called Klansmen showed a man in a Ku Klux Klan uniform and a noose with
+        the text "fetch the rope," which the court found to be incitement
+        against African Americans in its historical context, and an incitement
+        to murder.
+      </p>
+      <br />
+      <p>
+        Jonsson formally left the company's board after the verdict in 2016, but
+        he remained close to Midgård even after that. When Expressen asked
+        Jonsson about his current role in Midgård, he replied: “I think we keep
+        it a little floating, I do a little of what I want to do with Midgård.”
+        Otherwise, he didn’t want to answer any questions. “I don't think your
+        newspaper is really the one we talk about in, so to speak. We have too
+        many differences to get anything out of each other, I think,” he added.
+      </p>
+      <br />
+      <h2>Stormy years and closed investigations</h2>
+      <br />
+      <p>
+        The collusion with organized Nazism in Sweden began when Midgård was
+        started in the mid-1990s. For several years, sales took place out of a
+        physical store in Hisingen, an island in the municipality of Gothenburg.
+        Nazi magazines and records with white power bands such as Rahowa and
+        Pluton Svea were sold there. The shop became a gathering point for
+        skinheads — and a way for the then-growing white power music industry to
+        reach out. Midgård, which, at the end of the 1990s, started releasing
+        its own records, also had collaborations with other record companies.
+      </p>
+      <br />
+      <p>
+        Midgård was then run by Per-Anders "Pajen" Johansson. His central role
+        meant that he was covered in the major exposé of Nazis in Sweden that
+        the newspapers Expressen, Aftonbladet, Dagens Nyheter and Svenska
+        Dagbladet published in the fall of 1999. Midgård's store in Hisingen was
+        then the site of repeated demonstrations. In 2000, the landlord had
+        enough and terminated the contract.
+      </p>
+      <br />
+      <p>
+        “Those were stormy years. There were a lot of attacks and fights. It was
+        both demanding and stimulating,” Per-Anders Johansson, 53, told
+        Expressen. But Midgård managed to live on via mail order and online
+        sales. By then, the Swedish white power music scene had become
+        internationally known and Midgård had customers in other countries: “We
+        sold to Europe: Germany, Poland and England,” Johansson said. However,
+        the rise of downloading and eventually streaming music online made it
+        increasingly difficult to make ends meet financially. In 2012, he sold
+        the business to the company that now runs Midgård.
+      </p>
+      <br />
+      <p>
+        “For me, music has always been about buying a record that you could
+        touch. I wanted to flip through it, see what the band looked like and
+        read the lyrics. Suddenly, music became just something you downloaded. I
+        simply became like a dinosaur in a new world. I didn't think it was as
+        much fun anymore,” Johansson said, adding that he is happy with how
+        Midgård has continued.
+      </p>
+      <br />
+      <p>
+        In recent years under its new owners, turnover in the company has
+        increased significantly. Over the past ten years, the company has had a
+        reported turnover of €1 million (SEK 12 million). In 2023, they reported
+        €200,000 (SEK 2.3 million) in turnover, a fivefold increase in reported
+        turnover since 2013. The company has become more profitable, not less.
+      </p>
+      <br />
+      <p>
+        In various interrogations with the police, representatives of Midgård
+        have downplayed their political ties. Tobias Jonsson stated his
+        involvement in the company running the Nazi store more as a
+        “non-political hobby.” And the owners have constantly emphasized the
+        importance of obeying the law in order to continue the business
+        undisturbed. But the links between the shop and the organized Nazi
+        movement are clear.
+      </p>
+      <br />
+      <p>
+        Martin Flennfors has declared that he has no interest in being
+        interviewed about Midgård's operations and the company's role
+        internationally. “I have to thank you so much for the conversation.
+        Bye,” he said. When Expressen contacted Martin Engelin, he declined to
+        answer questions and referred Expressen to Flennfors.
+      </p>
+      <br />
+      <p>
+        The preliminary criminal investigations that began in 2016 and 2022 have
+        subsequently been closed.
+      </p>
+      <br />
+    </div>
+
+    <script>
+      var initLoad = true;
+      var config = {
+        style: "mapbox://styles/anastasiiamorozova/cm0ownugo00hm01qo7vd3f6yn",
+        accessToken:
+          "pk.eyJ1IjoiYW5hc3Rhc2lpYW1vcm96b3ZhIiwiYSI6ImNsMmh0dXZxOTBoNTIzbWw1MGUwdWo1MTUifQ.O0j7-OitWM0s7wrKDJ5LoA",
+        showMarkers: false,
+        markerColor: "#3FB1CE",
+        // projection: 'equirectangular',
+        // Read more about available projections here
+        // https://docs.mapbox.com/mapbox-gl-js/example/projections/
+        inset: false,
+        theme: "light",
+        use3dTerrain: true, // set true for enabling 3D maps.
+        auto: false,
+        // title: 'The Title Text of this Story',
+        // subtitle: 'A descriptive and interesting subtitle to draw in the reader',
+        // byline: 'By a Digital Storyteller',
+        // footer: 'Source: source citations, etc. <br> Created using <a href="https://github.com/mapbox/storytelling" target="_blank">Mapbox Storytelling</a> template.',
+        chapters: [
+          {
+            id: "slug-style-id",
+            alignment: "right",
+            hidden: true,
+            // title: 'Display Title',
+            // image: './path/to/image/source.png',
+            // description: 'From a cabin in the forest outside Swedish small town Alingsås, Europes Nazis are supplied with white supremacisty music, Nazi clothing and racial ideological propaganda.',
+            location: {
+              center: [18.9121, 64.29249],
+              zoom: 4.33,
+              pitch: 45.0,
+              bearing: 0.0,
+            },
+            mapAnimation: "flyTo",
+            rotateAnimation: false,
+            callback: "",
+            onChapterEnter: [
+              // {
+              //     layer: 'layer-name',
+              //     opacity: 1,
+              //     duration: 5000
+              // }
+            ],
+            onChapterExit: [
+              // {
+              //     layer: 'layer-name',
+              //     opacity: 0
+              // }
+            ],
+          },
+          {
+            id: "second-identifier",
+            alignment: "right",
+            hidden: false,
+            // title: 'Second Title',
+            // image: './path/to/image/source.png',
+            description:
+              "From a cabin in a forest outside the small Swedish town of Alingsås, Europe's Nazis are supplied with white supremacist music, Nazi clothing and racial ideological propaganda. Although many of these items of Nazi merchandise are illegal in Sweden or in the countries where the buyers reside (or in both), the business has been going on for years.",
+            location: {
+              center: [12.54778, 57.92571],
+              zoom: 11.25,
+              pitch: 45.0,
+              bearing: 0.0,
+              // flyTo additional controls-
+              // These options control the flight curve, making it move
+              // slowly and zoom out almost completely before starting
+              // to pan.
+              speed: 1, // make the flying slow
+              // curve: 1, // change the speed at which it zooms out
+            },
+            mapAnimation: "flyTo",
+            rotateAnimation: false,
+            callback: "",
+            onChapterEnter: [],
+            onChapterExit: [],
+          },
+          {
+            id: "third-identifier",
+            alignment: "right",
+            hidden: false,
+            // title: 'Third Title',
+            // image: './path/to/image/source.png',
+            description:
+              "An international investigation led by Expressen, with participation from VSquare and its Central European partners, can now expose the Swedish Nazi store Midgård. <br />Midgård has become a major European supplier of Nazi propaganda and has strong ties to the Nordic Resistance Movement (NMR), which was classified as a terrorist group by the US State Department in summer 2024. Shortly thereafter, accounts and sites linked to the Nazi terrorist organization were shut down.",
+            location: {
+              center: [12.55721, 57.96673],
+              zoom: 17,
+              pitch: 45.0,
+              bearing: 0.0,
+            },
+            mapAnimation: "flyTo",
+            rotateAnimation: true,
+            callback: "",
+            onChapterEnter: [],
+            onChapterExit: [],
+          },
+          {
+            id: "fourth-identifier",
+            alignment: "center",
+            hidden: false,
+            title:
+              "Online neo-Nazi Store and Customers From Central Europe Exposed",
+            image: "image-7.png",
+            description:
+              "David Baas, Expressen (Sweden)<br> Daniel Olsson, Expressen (Sweden)<br> Orsolya Fülöp, Átlátszó (Hungary)<br> Mariusz Sepioło, Anastasiia Morozova, FRONTSTORY.PL (Poland)<br> Investigace.cz (Czech Republic)<br> ICJK.sk (Slovakia)",
+            location: {
+              center: [12.55721, 57.96673],
+              zoom: 17,
+              pitch: 45.0,
+              bearing: 0.0,
+            },
+            mapAnimation: "flyTo",
+            rotateAnimation: true,
+            callback: "",
+            onChapterEnter: [],
+            onChapterExit: [],
+          },
+        ],
+      };
+      var config2 = {
+        style: "mapbox://styles/anastasiiamorozova/cm0psoh7k00jx01quct71bwe8",
+        accessToken:
+          "pk.eyJ1IjoiYW5hc3Rhc2lpYW1vcm96b3ZhIiwiYSI6ImNsMmh0dXZxOTBoNTIzbWw1MGUwdWo1MTUifQ.O0j7-OitWM0s7wrKDJ5LoA",
+        showMarkers: false,
+        markerColor: "#3FB1CE",
+        // projection: 'equirectangular',
+        // Read more about available projections here
+        // https://docs.mapbox.com/mapbox-gl-js/example/projections/
+        inset: false,
+        theme: "light",
+        use3dTerrain: true, // set true for enabling 3D maps.
+        auto: false,
+        // title: 'The Title Text of this Story',
+        // subtitle: 'A descriptive and interesting subtitle to draw in the reader',
+        // byline: 'By a Digital Storyteller',
+        // footer: 'Source: source citations, etc. <br> Created using <a href="https://github.com/mapbox/storytelling" target="_blank">Mapbox Storytelling</a> template.',
+        chapters: [
+          {
+            id: "slug-style-id",
+            alignment: "right",
+            hidden: true,
+            // title: 'Display Title',
+            // image: './path/to/image/source.png',
+            // description: 'From a cabin in the forest outside Swedish small town Alingsås, Europes Nazis are supplied with white supremacisty music, Nazi clothing and racial ideological propaganda.',
+            location: {
+              center: [21.2479, 56.89343],
+              zoom: 3.92,
+              pitch: 45.0,
+              bearing: 0.0,
+            },
+            mapAnimation: "flyTo",
+            rotateAnimation: false,
+            callback: "",
+            onChapterEnter: [
+              // {
+              //     layer: 'layer-name',
+              //     opacity: 1,
+              //     duration: 5000
+              // }
+            ],
+            onChapterExit: [
+              // {
+              //     layer: 'layer-name',
+              //     opacity: 0
+              // }
+            ],
+          },
+          {
+            id: "second-identifier",
+            alignment: "right",
+            hidden: false,
+            // title: 'Second Title',
+            // image: './path/to/image/source.png',
+            description:
+              "In Hungary, according to Atlatszo.hu's analysis of the leaked data, one of Midgård’s customers was a pro-government journalist. Over the years, several shipments of white power music, including works by several Swedish neo-Nazi bands, have been sent to his address.",
+            location: {
+              center: [20.71547, 47.43102],
+              zoom: 6.54,
+              pitch: 45.0,
+              bearing: 0.0,
+              // flyTo additional controls-
+              // These options control the flight curve, making it move
+              // slowly and zoom out almost completely before starting
+              // to pan.
+              // speed: 2, // make the flying slow
+              // curve: 1, // change the speed at which it zooms out
+            },
+            mapAnimation: "flyTo",
+            rotateAnimation: false,
+            callback: "",
+            onChapterEnter: [],
+            onChapterExit: [],
+          },
+          {
+            id: "third-identifier",
+            alignment: "right",
+            hidden: false,
+            // title: 'Third Title',
+            // image: './path/to/image/source.png',
+            description:
+              "In the Czech Republic, investigace.cz found that people who have been punished by the Czech authorities for Nazi-related activities and their proximity to the neo-Nazi scene have been Midgård customers. Midgård’s customer list in the Czech Republic includes people ranging from from a lawyer to a businessman in the beauty industry.",
+            location: {
+              center: [16.80917, 49.93989],
+              zoom: 6.6,
+              pitch: 45.0,
+              bearing: 0.0,
+            },
+            mapAnimation: "flyTo",
+            rotateAnimation: false,
+            callback: "",
+            onChapterEnter: [],
+            onChapterExit: [],
+          },
+          {
+            id: "fourth-identifier",
+            alignment: "right",
+            hidden: false,
+            // title: 'Third Title',
+            // image: './path/to/image/source.png',
+            description:
+              "In Slovakia, the Investigative Center of Ján Kuciak (ICJK.sk) discovered several businesspeople, and also a soldier in the Slovakian military who purchased Nazi records, clothing, and other items from Midgård's catalog.",
+            location: {
+              center: [21.16728, 48.4438],
+              zoom: 6.6,
+              pitch: 45.0,
+              bearing: 0.0,
+            },
+            mapAnimation: "flyTo",
+            rotateAnimation: false,
+            callback: "",
+            onChapterEnter: [],
+            onChapterExit: [],
+          },
+          {
+            id: "fifth-identifier",
+            alignment: "right",
+            hidden: false,
+            // title: 'Third Title',
+            // image: './path/to/image/source.png',
+            description:
+              "In Poland, FRONTSTORY.PL found among the many customers a martial artist successful at both national and European levels, as well as a local politician and a well-known Nazi community organizer.",
+            location: {
+              center: [22.31147, 51.74489],
+              zoom: 5.6,
+              pitch: 45.0,
+              bearing: 0.0,
+            },
+            mapAnimation: "flyTo",
+            rotateAnimation: false,
+            callback: "",
+            onChapterEnter: [],
+            onChapterExit: [],
+          },
+        ],
+      };
+      var layerTypes = {
+        fill: ["fill-opacity"],
+        line: ["line-opacity"],
+        circle: ["circle-opacity", "circle-stroke-opacity"],
+        symbol: ["icon-opacity", "text-opacity"],
+        raster: ["raster-opacity"],
+        "fill-extrusion": ["fill-extrusion-opacity"],
+        heatmap: ["heatmap-opacity"],
+      };
+
+      var alignments = {
+        left: "lefty",
+        center: "centered",
+        right: "righty",
+        full: "fully",
+      };
+
+      var story = document.getElementById("story");
+      var features = document.createElement("div");
+      features.setAttribute("id", "features");
+
+      var header = document.createElement("div");
+
+      if (config.title) {
+        var titleText = document.createElement("h1");
+        titleText.innerText = config.title;
+        header.appendChild(titleText);
+      }
+
+      if (config.subtitle) {
+        var subtitleText = document.createElement("h2");
+        subtitleText.innerText = config.subtitle;
+        header.appendChild(subtitleText);
+      }
+
+      if (config.byline) {
+        var bylineText = document.createElement("p");
+        bylineText.innerText = config.byline;
+        header.appendChild(bylineText);
+      }
+
+      if (header.innerText.length > 0) {
+        header.classList.add(config.theme);
+        header.setAttribute("id", "header");
+        story.appendChild(header);
+      }
+
+      config.chapters.forEach((record, idx) => {
+        var container = document.createElement("div");
+        var chapter = document.createElement("div");
+
+        if (record.title) {
+          var title = document.createElement("h3");
+          title.innerText = record.title;
+          chapter.appendChild(title);
+        }
+
+        if (record.image) {
+          var image = new Image();
+          image.src = record.image;
+          chapter.appendChild(image);
+        }
+
+        if (record.description) {
+          var story = document.createElement("p");
+          story.innerHTML = record.description;
+          chapter.appendChild(story);
+        }
+
+        container.setAttribute("id", record.id);
+        container.classList.add("step");
+        if (idx === 0) {
+          container.classList.add("active");
+        }
+
+        chapter.classList.add(config.theme);
+        container.appendChild(chapter);
+        container.classList.add(alignments[record.alignment] || "centered");
+        if (record.hidden) {
+          container.classList.add("hidden");
+        }
+        features.appendChild(container);
+      });
+
+      story.appendChild(features);
+
+      var story2 = document.getElementById("story2");
+      var features2 = document.createElement("div");
+      features2.setAttribute("id", "features");
+
+      var header2 = document.createElement("div");
+
+      if (config2.title) {
+        var titleText = document.createElement("h1");
+        titleText.innerText = config2.title;
+        header2.appendChild(titleText);
+      }
+
+      if (config2.subtitle) {
+        var subtitleText = document.createElement("h2");
+        subtitleText.innerText = config2.subtitle;
+        header2.appendChild(subtitleText);
+      }
+
+      if (config2.byline) {
+        var bylineText = document.createElement("p");
+        bylineText.innerText = config2.byline;
+        header2.appendChild(bylineText);
+      }
+
+      if (header2.innerText.length > 0) {
+        header2.classList.add(config.theme);
+        header2.setAttribute("id", "header2");
+        story2.appendChild(header2);
+      }
+
+      config2.chapters.forEach((record, idx) => {
+        var container = document.createElement("div");
+        var chapter = document.createElement("div");
+
+        if (record.title) {
+          var title = document.createElement("h3");
+          title.innerText = record.title;
+          chapter.appendChild(title);
+        }
+
+        if (record.image) {
+          var image = new Image();
+          image.src = record.image;
+          chapter.appendChild(image);
+        }
+
+        if (record.description) {
+          var story = document.createElement("p");
+          story.innerHTML = record.description;
+          chapter.appendChild(story);
+        }
+
+        container.setAttribute("id", record.id);
+        container.classList.add("step");
+        if (idx === 0) {
+          container.classList.add("active");
+        }
+
+        chapter.classList.add(config2.theme);
+        container.appendChild(chapter);
+        container.classList.add(alignments[record.alignment] || "centered");
+        if (record.hidden) {
+          container.classList.add("hidden");
+        }
+        features2.appendChild(container);
+      });
+
+      story2.appendChild(features2);
+
+      var footer = document.createElement("div");
+      //
+      // if (config.footer) {
+      //   var footerText = document.createElement("p");
+      //   footerText.innerHTML = config.footer;
+      //   footer.appendChild(footerText);
+      // }
+
+      if (footer.innerText.length > 0) {
+        footer.classList.add(config2.theme);
+        footer.setAttribute("id", "footer");
+        story2.appendChild(footer);
+      }
+
+      mapboxgl.accessToken = config.accessToken;
+
+      const transformRequest = (url) => {
+        const hasQuery = url.indexOf("?") !== -1;
+        const suffix = hasQuery
+          ? "&pluginName=scrollytellingV2"
+          : "?pluginName=scrollytellingV2";
+        return {
+          url: url + suffix,
+        };
+      };
+      //call map1
+      var map1 = new mapboxgl.Map({
+        container: "map1",
+        style: config.style,
+        center: config.chapters[0].location.center,
+        zoom: config.chapters[0].location.zoom,
+        bearing: config.chapters[0].location.bearing,
+        pitch: config.chapters[0].location.pitch,
+        interactive: false,
+        transformRequest: transformRequest,
+        projection: config.projection,
+      });
+      function getLayerPaintType(layer) {
+        var layerType = map1.getLayer(layer).type;
+        return layerTypes[layerType];
+      }
+
+      function setLayerOpacity(layer) {
+        var paintProps = getLayerPaintType(layer.layer);
+        paintProps.forEach(function (prop) {
+          var options = {};
+          if (layer.duration) {
+            var transitionProp = prop + "-transition";
+            options = { duration: layer.duration };
+            map1.setPaintProperty(layer.layer, transitionProp, options);
+          }
+          map1.setPaintProperty(layer.layer, prop, layer.opacity, options);
+        });
+      }
+      //call map2
+      var map2 = new mapboxgl.Map({
+        container: "map2",
+        style: config2.style,
+        center: config2.chapters[0].location.center,
+        zoom: config2.chapters[0].location.zoom,
+        bearing: config2.chapters[0].location.bearing,
+        pitch: config2.chapters[0].location.pitch,
+        interactive: false,
+        transformRequest: transformRequest,
+        projection: config2.projection,
+      });
+
+      function getLayerPaintType(layer) {
+        var layerType = map.getLayer(layer).type;
+        return layerTypes[layerType];
+      }
+
+      function setLayerOpacity(layer) {
+        var paintProps = getLayerPaintType(layer.layer);
+        paintProps.forEach(function (prop) {
+          var options = {};
+          if (layer.duration) {
+            var transitionProp = prop + "-transition";
+            options = { duration: layer.duration };
+            map2.setPaintProperty(layer.layer, transitionProp, options);
+          }
+          map2.setPaintProperty(layer.layer, prop, layer.opacity, options);
+        });
+      }
+
+      if (config.showMarkers) {
+        var marker = new mapboxgl.Marker({ color: config.markerColor });
+        marker.setLngLat(config.chapters[0].location.center).addTo(map);
+      }
+
+      // instantiate the scrollama1 for map1
+      var scroller1 = scrollama();
+
+      map1.on("load", function () {
+        if (config.use3dTerrain) {
+          map1.addSource("mapbox-dem", {
+            type: "raster-dem",
+            url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+            tileSize: 512,
+            maxzoom: 14,
+          });
+          // add the DEM source as a terrain layer with exaggerated height
+          map1.setTerrain({ source: "mapbox-dem", exaggeration: 1.5 });
+
+          // add a sky layer that will show when the map is highly pitched
+          map1.addLayer({
+            id: "sky",
+            type: "sky",
+            paint: {
+              "sky-type": "atmosphere",
+              "sky-atmosphere-sun": [0.0, 0.0],
+              "sky-atmosphere-sun-intensity": 15,
+            },
+          });
+        }
+
+        // As the map moves, grab and update bounds in inset map.
+        if (config.inset) {
+          map1.on("move", getInsetBounds);
+        }
+        // setup the instance, pass callback functions
+        scroller1
+          .setup({
+            step: ".step",
+            offset: 0.5,
+            progress: true,
+          })
+          .onStepEnter(async (response) => {
+            var current_chapter = config.chapters.findIndex(
+              (chap) => chap.id === response.element.id
+            );
+            var chapter = config.chapters[current_chapter];
+
+            response.element.classList.add("active");
+            map1[chapter.mapAnimation || "flyTo"](chapter.location);
+
+            if (config.showMarkers) {
+              marker.setLngLat(chapter.location.center);
+            }
+            if (chapter.onChapterEnter.length > 0) {
+              chapter.onChapterEnter.forEach(setLayerOpacity);
+            }
+            if (chapter.callback) {
+              window[chapter.callback]();
+            }
+            if (chapter.rotateAnimation) {
+              map1.once("moveend", () => {
+                const rotateNumber = map1.getBearing();
+                map1.rotateTo(rotateNumber + 180, {
+                  duration: 30000,
+                  easing: function (t) {
+                    return t;
+                  },
+                });
+              });
+            }
+            if (config.auto) {
+              var next_chapter = (current_chapter + 1) % config.chapters.length;
+              map1.once("moveend", () => {
+                document
+                  .querySelectorAll(
+                    '[data-scrollama-index="' + next_chapter.toString() + '"]'
+                  )[0]
+                  .scrollIntoView();
+              });
+            }
+          })
+          .onStepExit((response) => {
+            var chapter = config.chapters.find(
+              (chap) => chap.id === response.element.id
+            );
+            response.element.classList.remove("active");
+            if (chapter.onChapterExit.length > 0) {
+              chapter.onChapterExit.forEach(setLayerOpacity);
+            }
+          });
+
+        if (config.auto) {
+          document
+            .querySelectorAll('[data-scrollama-index="0"]')[0]
+            .scrollIntoView();
+        }
+      });
+
+      // instantiate the scrollama2 for map2
+      var scroller2 = scrollama();
+
+      map2.on("load", function () {
+        if (config.use3dTerrain) {
+          map2.addSource("mapbox-dem", {
+            type: "raster-dem",
+            url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+            tileSize: 512,
+            maxzoom: 14,
+          });
+          // add the DEM source as a terrain layer with exaggerated height
+          map2.setTerrain({ source: "mapbox-dem", exaggeration: 1.5 });
+
+          // add a sky layer that will show when the map is highly pitched
+          map2.addLayer({
+            id: "sky",
+            type: "sky",
+            paint: {
+              "sky-type": "atmosphere",
+              "sky-atmosphere-sun": [0.0, 0.0],
+              "sky-atmosphere-sun-intensity": 15,
+            },
+          });
+        }
+
+        // setup the instance, pass callback functions
+        scroller2
+          .setup({
+            step: ".step",
+            offset: 0.5,
+            progress: true,
+          })
+          .onStepEnter(async (response) => {
+            var current_chapter = config2.chapters.findIndex(
+              (chap) => chap.id === response.element.id
+            );
+            var chapter = config2.chapters[current_chapter];
+
+            response.element.classList.add("active");
+            map2[chapter.mapAnimation || "flyTo"](chapter.location);
+
+            if (config2.showMarkers) {
+              marker.setLngLat(chapter.location.center);
+            }
+            if (chapter.onChapterEnter.length > 0) {
+              chapter.onChapterEnter.forEach(setLayerOpacity);
+            }
+            if (chapter.callback) {
+              window[chapter.callback]();
+            }
+            if (chapter.rotateAnimation) {
+              map2.once("moveend", () => {
+                const rotateNumber = map2.getBearing();
+                map2.rotateTo(rotateNumber + 180, {
+                  duration: 30000,
+                  easing: function (t) {
+                    return t;
+                  },
+                });
+              });
+            }
+            if (config2.auto) {
+              var next_chapter =
+                (current_chapter + 1) % config2.chapters.length;
+              map2.once("moveend", () => {
+                document
+                  .querySelectorAll(
+                    '[data-scrollama-index="' + next_chapter.toString() + '"]'
+                  )[0]
+                  .scrollIntoView();
+              });
+            }
+          })
+          .onStepExit((response) => {
+            var chapter = config2.chapters.find(
+              (chap) => chap.id === response.element.id
+            );
+            response.element.classList.remove("active");
+            if (chapter.onChapterExit.length > 0) {
+              chapter.onChapterExit.forEach(setLayerOpacity);
+            }
+          });
+
+        if (config2.auto) {
+          document
+            .querySelectorAll('[data-scrollama-index="0"]')[0]
+            .scrollIntoView();
+        }
+      });
+    </script>
+  </body>
+</html>
