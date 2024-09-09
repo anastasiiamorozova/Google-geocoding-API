@@ -1,10 +1,12 @@
-# Google-geocoding-API
-Data cleaning and geocoding
+# Midgard
+In this project, I analysed the customer data which was a scraped leak from an online shop. 
 
-In this project, I analysed the customer data which was a scraped leak from some online shop. Our research question was 'How many people from Poland were customers of the shop?'
+Information on approximately 20,000 purchases on Midgård was put online. The leak, which was spread by the left-wing extremist organization AFA, contains Midgård's customer register and provides insight into just how widespread Midgård's sales are.
+The initial dataset contained columns with the name, surname, street, and city of the customer. I geocoded them, and pulled out names of the countries from the Google API response. 
 
-The initial dataset contained columns with the name, surname, street, and city of the customer. I merged the street and city columns, geocoded them, and pulled out names of the countries from the Google API response. Then, I created a clean full_name column to count unique names from Poland.
+
 
 More details is commented in the code.
 
-The story will soon be published in English at VSquare.org.
+The story is published in English at VSquare.org.
+https://vsquare.org/nazi-shop-sweden-poland-czech-slovak-politics/
